@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Product, CartItem } from './types.ts';
-import { PRODUCTS, CATEGORIES } from './constants.ts';
-import Navbar from './components/Navbar.tsx';
-import Footer from './components/Footer.tsx';
-import ProductCard from './components/ProductCard.tsx';
+import { View, Product, CartItem } from './types';
+import { PRODUCTS, CATEGORIES } from './constants';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import ProductCard from './components/ProductCard';
 import { ChevronRight, ArrowLeft, Trash2, CheckCircle, Loader2, Plus, Minus, CreditCard, Apple, Wallet, Sparkles } from 'lucide-react';
 
 declare var THREE: any;
@@ -23,7 +23,6 @@ const ThreeDScene: React.FC = () => {
     renderer.setSize(400, 400);
     containerRef.current.appendChild(renderer.domElement);
 
-    // Create a high-end luxury diamond geometry
     const geometry = new THREE.OctahedronGeometry(1.2, 2);
     const material = new THREE.MeshStandardMaterial({
       color: 0xC6A75E,
@@ -54,45 +53,37 @@ const ThreeDScene: React.FC = () => {
 
     const onMouseMove = (event: MouseEvent) => {
       if (!isHovering.current || !containerRef.current) return;
-      
       const rect = containerRef.current.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      
-      // Calculate normalized coordinates within the container
       targetX = (x / rect.width) * 2 - 1;
       targetY = -(y / rect.height) * 2 + 1;
     };
 
     const container = containerRef.current;
     container.addEventListener('mousemove', onMouseMove);
-    container.addEventListener('mouseenter', () => { 
-      isHovering.current = true; 
-    });
-    container.addEventListener('mouseleave', () => { 
-      isHovering.current = false; 
-    });
+    container.addEventListener('mouseenter', () => { isHovering.current = true; });
+    container.addEventListener('mouseleave', () => { isHovering.current = false; });
 
     const animate = () => {
       requestAnimationFrame(animate);
       
-      // Constant baseline slow rotation
+      // Constant baseline slow rotation (Always in motion)
       mesh.rotation.y += 0.003;
       mesh.rotation.x += 0.0015;
 
       if (isHovering.current) {
-        // Smoothly approach the cursor-influenced targets with low damping for "no fast movement"
+        // Smoothly approach the cursor-influenced targets
         currentX += (targetX - currentX) * 0.02;
         currentY += (targetY - currentY) * 0.02;
       } else {
-        // Smoothly fade out the cursor influence when not hovering
+        // Smoothly return to baseline when not hovering
         currentX *= 0.98;
         currentY *= 0.98;
       }
 
-      // Apply the cursor delta to the rotation
-      mesh.rotation.y += (currentX * 0.04);
-      mesh.rotation.x += (-currentY * 0.04);
+      mesh.rotation.y += (currentX * 0.03);
+      mesh.rotation.x += (-currentY * 0.03);
 
       renderer.render(scene, camera);
     };
@@ -108,7 +99,6 @@ const ThreeDScene: React.FC = () => {
 
   return (
     <div className="relative group">
-      {/* cursor-default ensures no crosshair change as requested */}
       <div ref={containerRef} className="w-[400px] h-[400px] cursor-default z-10 relative" />
       <div className="absolute inset-0 border border-[#C6A75E]/10 rounded-full scale-90 group-hover:scale-100 transition-transform duration-1000 pointer-events-none"></div>
     </div>
@@ -215,7 +205,6 @@ const App: React.FC = () => {
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
-        
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-center max-w-7xl mx-auto px-8 w-full">
           <div className="flex-1 space-y-10 text-center md:text-left animate-in slide-in-from-left-12 duration-1000">
             <div className="flex items-center space-x-4 mb-4">
@@ -243,7 +232,6 @@ const App: React.FC = () => {
               </button>
             </div>
           </div>
-
           <div className="flex-1 hidden md:flex items-center justify-center animate-in zoom-in-50 duration-1000">
             <ThreeDScene />
           </div>
@@ -355,14 +343,12 @@ const App: React.FC = () => {
           >
             <ArrowLeft className="w-4 h-4 mr-6 transition-transform group-hover:-translate-x-3" /> RETURN TO GALLERY
           </button>
-
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-24">
             <div className="lg:col-span-7 space-y-12">
               <div className="aspect-[3/4] overflow-hidden bg-[#0a0a0a] shadow-2xl border border-white/5">
                 <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
               </div>
             </div>
-
             <div className="lg:col-span-5 space-y-16 h-fit sticky top-40">
               <div className="space-y-8">
                 <div className="flex items-center space-x-4">
@@ -372,7 +358,6 @@ const App: React.FC = () => {
                 <h1 className="text-7xl font-serif italic tracking-tighter text-white leading-tight">{selectedProduct.name}</h1>
                 <p className="text-5xl font-light gold-text">₹ {selectedProduct.price.toLocaleString('en-IN')}</p>
               </div>
-
               <div className="space-y-6 pt-10">
                 <button 
                   onClick={() => addToBag(selectedProduct)}
@@ -381,7 +366,6 @@ const App: React.FC = () => {
                   ADJOIN TO COLLECTION
                 </button>
               </div>
-
               <div className="space-y-12 pt-16">
                 <div className="space-y-6">
                   <h4 className="text-[12px] tracking-[0.4em] font-black text-[#C6A75E] uppercase italic">The Narrative</h4>
@@ -400,7 +384,6 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen py-40 px-8 max-w-7xl mx-auto bg-[#050505] animate-in fade-in duration-1000">
         <h1 className="text-8xl font-serif mb-32 text-center tracking-tighter italic gold-text">Selection Archive</h1>
-        
         {cart.length === 0 ? (
           <div className="text-center py-60 space-y-12 border-y border-white/5">
             <p className="text-white/20 font-serif italic text-4xl">Your repository of luxury is currently vacant.</p>
@@ -444,7 +427,6 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
-
             <div className="lg:col-span-4 h-fit sticky top-40 bg-[#0a0a0a] p-16 border border-white/5 shadow-2xl space-y-16">
               <h2 className="text-[16px] tracking-[0.6em] font-black uppercase pb-8 border-b border-white/5 gold-text italic font-serif text-center">Summary of Value</h2>
               <div className="pt-16 border-t border-white/10 flex justify-between text-4xl font-serif italic font-black text-white leading-none">
@@ -465,7 +447,6 @@ const App: React.FC = () => {
 
   const renderCheckout = () => {
     const total = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-    
     if (orderComplete) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-black px-8 animate-in zoom-in-95 duration-1000">
@@ -482,7 +463,6 @@ const App: React.FC = () => {
         </div>
       );
     }
-
     return (
       <div className="min-h-screen py-40 bg-[#050505] px-8 max-w-7xl mx-auto animate-in fade-in duration-1000">
         <h1 className="text-8xl font-serif mb-32 text-center tracking-tighter italic gold-text">Final Acquisition</h1>
@@ -520,12 +500,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#050505]">
-      <Navbar 
-        onNavigate={navigateToView} 
-        cartCount={cart.reduce((a, b) => a + b.quantity, 0)} 
-        isLoggedIn={isLoggedIn}
-      />
-      
+      <Navbar onNavigate={navigateToView} cartCount={cart.reduce((a, b) => a + b.quantity, 0)} isLoggedIn={isLoggedIn} />
       <main className="flex-grow">
         {currentView === View.HOME && renderHome()}
         {currentView === View.PRODUCT_DETAIL && renderProductDetail()}
@@ -534,9 +509,7 @@ const App: React.FC = () => {
         {currentView === View.LOGIN && renderAuth('login')}
         {currentView === View.SIGNUP && renderAuth('signup')}
       </main>
-
       <Footer />
-
       <div 
         className="fixed top-24 left-0 h-[2px] bg-[#C6A75E] z-[60] transition-all duration-700 shadow-[0_0_20px_#C6A75E]"
         style={{ width: `${scrollProgress}%` }}

@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Search, User, Heart, ShoppingBag } from 'lucide-react';
-import { View } from '../types.ts';
+import { Search, User, ShoppingBag } from 'lucide-react';
+import { View } from '../types';
 
 interface NavbarProps {
   onNavigate: (view: View) => void;
@@ -14,7 +14,6 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, cartCount, isLoggedIn }) =>
     <nav className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-xl border-b border-white/5 shadow-2xl">
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex justify-between items-center h-24">
-          {/* Menu Links */}
           <div className="hidden lg:flex items-center space-x-12">
             {['LADIES', 'MEN', 'KIDS', 'HOME', 'BEAUTY'].map((item) => (
               <button
@@ -28,14 +27,13 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, cartCount, isLoggedIn }) =>
             ))}
           </div>
 
-          {/* Brand Identity */}
           <div className="flex-1 flex justify-center">
             <button 
               onClick={() => onNavigate(View.HOME)}
               className="group relative flex flex-col items-center py-2 transition-transform duration-500 hover:scale-105"
             >
               <img 
-                src="components/RIVARA_LOGO-removebg-preview.png" 
+                src="./components/RIVARA_LOGO-removebg-preview.png" 
                 alt="RIVARA ITALY" 
                 className="h-16 md:h-20 w-auto object-contain brightness-0 invert opacity-90 group-hover:opacity-100 transition-opacity"
                 onError={(e) => {
@@ -51,7 +49,6 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, cartCount, isLoggedIn }) =>
             </button>
           </div>
 
-          {/* Icons */}
           <div className="flex items-center space-x-10">
             <Search className="w-5 h-5 cursor-pointer hover:text-[#C6A75E] transition-colors stroke-[1.5px] text-white/80" />
             <User 
