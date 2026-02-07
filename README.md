@@ -1,20 +1,34 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# RIVARA ITALY - Production Backend
 
-This contains everything you need to run your app locally.
+## 🚀 Setup & Installation
+1. `npm install`
+2. Create `.env` file based on `.env.example`.
+3. Ensure `MONGODB_URI` is correct.
+4. Set `JWT_SECRET` to a long random string.
+5. Run `npm run start` or `npm run dev`.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1EvrXt_Fnmma6EVNnToJVYJirIMcBeAi0
+## 👑 Sovereign Credentials
+- Email: `manishishaa17@gmail.com`
+- Any user registering with this email automatically inherits the `admin` role and `Sovereign` tier.
 
-## Run Locally
+## 🔐 Security Protocols
+- **JWT Protection**: All sensitive routes require a Bearer token.
+- **Admin Lock**: Product creation, editing, and deletion are restricted to users with `role: admin`.
+- **Input Validation**: NoSQL injection protection and body size limiting implemented.
 
-**Prerequisites:**  Node.js
+## 📦 Deployment Instructions (Render / Railway)
+1. Link your GitHub repository.
+2. Set Environment Variables:
+   - `MONGODB_URI`
+   - `JWT_SECRET`
+   - `GOOGLE_CLIENT_ID`
+   - `NODE_ENV=production`
+3. Root Directory: `.`
+4. Build Command: `npm install`
+5. Start Command: `node server.js`
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🚨 Google Auth Fix
+If you see `origin_mismatch`:
+1. Go to Google Cloud Console.
+2. Add your frontend URL (e.g., `http://localhost:5173`) to **Authorized JavaScript Origins**.

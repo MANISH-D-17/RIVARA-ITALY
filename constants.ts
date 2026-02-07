@@ -18,7 +18,9 @@ export const PRODUCTS: Product[] = [
     category: 'Ladies',
     description: 'A masterpiece in midnight velvet and silk lining. Hand-tailored in our Milan atelier.',
     details: ['Premium Italian Velvet', 'Silk Lapels', 'Gold-dipped buttons', 'Bespoke fit'],
-    care: ['Dry clean only', 'Store in a climate-controlled wardrobe']
+    care: ['Dry clean only', 'Store in a climate-controlled wardrobe'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 12
   },
   {
     id: '2',
@@ -29,7 +31,9 @@ export const PRODUCTS: Product[] = [
     category: 'Ladies',
     description: 'Floor-length silk crepe de chine. Elegance redefined for the modern aristocrat.',
     details: ['100% Mulberry Silk', 'Hand-stitched hems', 'Hidden zip closure'],
-    care: ['Delicate dry clean', 'Hand wash cold']
+    care: ['Delicate dry clean', 'Hand wash cold'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 5
   },
   {
     id: '3',
@@ -40,7 +44,9 @@ export const PRODUCTS: Product[] = [
     category: 'Ladies',
     description: 'Gold-leaf embossed calf leather. A statement of pure opulence.',
     details: ['24k Gold leaf accents', 'Genuine Calf Leather', 'Suede lining'],
-    care: ['Clean with professional leather kit', 'Store in dust bag']
+    care: ['Clean with professional leather kit', 'Store in dust bag'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 24
   },
   {
     id: '4',
@@ -51,7 +57,9 @@ export const PRODUCTS: Product[] = [
     category: 'Beauty',
     description: 'Automatic movement with 18k solid gold casing. The ultimate timepiece.',
     details: ['Swiss Movement', 'Solid Gold Case', 'Alligator strap'],
-    care: ['Service every 3 years', 'Water resistant to 50m']
+    care: ['Service every 3 years', 'Water resistant to 50m'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 3
   },
   {
     id: '5',
@@ -62,7 +70,9 @@ export const PRODUCTS: Product[] = [
     category: 'Men',
     description: 'Pure vicuña-style cashmere. Softness beyond imagination.',
     details: ['100% Premium Cashmere', 'Hand-finished seams', 'Breathable knit'],
-    care: ['Hand wash cold', 'Lay flat to dry']
+    care: ['Hand wash cold', 'Lay flat to dry'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 8
   },
   {
     id: '6',
@@ -73,7 +83,9 @@ export const PRODUCTS: Product[] = [
     category: 'Men',
     description: 'Italian silk weave with mother-of-pearl buttons. The summit of formal wear.',
     details: ['100% Italian Silk', 'Bespoke tailoring', 'Mother-of-pearl buttons'],
-    care: ['Delicate wash', 'Low heat iron']
+    care: ['Delicate wash', 'Low heat iron'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 30
   },
   {
     id: '7',
@@ -84,7 +96,9 @@ export const PRODUCTS: Product[] = [
     category: 'Men',
     description: 'Full-grain lambskin with gold hardware. For those who lead.',
     details: ['Top-grain Lambskin', 'Gold-plated zippers', 'Quilted lining'],
-    care: ['Leather specialist only', 'Avoid moisture']
+    care: ['Leather specialist only', 'Avoid moisture'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 4
   },
   {
     id: '8',
@@ -95,14 +109,8 @@ export const PRODUCTS: Product[] = [
     category: 'Men',
     description: 'Polished calfskin with a hand-painted finish. Masterful craftsmanship.',
     details: ['Blake-stitched sole', 'Hand-polished leather', 'Elasticated side panels'],
-    care: ['Polish with luxury wax', 'Store with shoe trees']
+    care: ['Polish with luxury wax', 'Store with shoe trees'],
+    // Fix: changed 'stock' to 'stockQuantity' to match Product interface and removed invalid 'artisanId'
+    stockQuantity: 15
   }
-];
-
-export const CATEGORIES = [
-  { name: 'Ladies', image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800' },
-  { name: 'Men', image: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?auto=format&fit=crop&q=80&w=800' },
-  { name: 'Kids', image: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&q=80&w=800' },
-  { name: 'Home', image: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=800' },
-  { name: 'Beauty', image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=800' }
 ];

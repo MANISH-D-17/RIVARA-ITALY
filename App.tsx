@@ -1,519 +1,442 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Product, CartItem } from './types';
-import { PRODUCTS, CATEGORIES } from './constants';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Product, CartItem, User, Category } from './types';
+import { maisonApi } from './MaisonService';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProductCard from './components/ProductCard';
-import { ChevronRight, ArrowLeft, Trash2, CheckCircle, Loader2, Plus, Minus, CreditCard, Apple, Wallet, Sparkles } from 'lucide-react';
+import Hero3D from './components/Hero3D';
+import AdminDashboard from './components/AdminDashboard';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ShieldCheck, Loader2, Fingerprint, Lock, ShoppingBag, Heart, Trash2, User as UserIcon, LogOut, Package
+} from 'lucide-react';
 
-declare var THREE: any;
-
-const ThreeDScene: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isHovering = useRef(false);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    
-    renderer.setSize(400, 400);
-    containerRef.current.appendChild(renderer.domElement);
-
-    const geometry = new THREE.OctahedronGeometry(1.2, 2);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xC6A75E,
-      wireframe: true,
-      metalness: 1,
-      roughness: 0.1,
-      emissive: 0x443311,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
-
-    const mainLight = new THREE.PointLight(0xffffff, 2);
-    mainLight.position.set(5, 5, 5);
-    scene.add(mainLight);
-    
-    const fillLight = new THREE.PointLight(0xC6A75E, 1);
-    fillLight.position.set(-5, -5, 2);
-    scene.add(fillLight);
-    
-    scene.add(new THREE.AmbientLight(0x404040, 0.5));
-
-    camera.position.z = 2.8;
-
-    let targetX = 0;
-    let targetY = 0;
-    let currentX = 0;
-    let currentY = 0;
-
-    const onMouseMove = (event: MouseEvent) => {
-      if (!isHovering.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      targetX = (x / rect.width) * 2 - 1;
-      targetY = -(y / rect.height) * 2 + 1;
-    };
-
-    const container = containerRef.current;
-    container.addEventListener('mousemove', onMouseMove);
-    container.addEventListener('mouseenter', () => { isHovering.current = true; });
-    container.addEventListener('mouseleave', () => { isHovering.current = false; });
-
-    const animate = () => {
-      requestAnimationFrame(animate);
-      
-      // Constant baseline slow rotation (Always in motion)
-      mesh.rotation.y += 0.003;
-      mesh.rotation.x += 0.0015;
-
-      if (isHovering.current) {
-        // Smoothly approach the cursor-influenced targets
-        currentX += (targetX - currentX) * 0.02;
-        currentY += (targetY - currentY) * 0.02;
-      } else {
-        // Smoothly return to baseline when not hovering
-        currentX *= 0.98;
-        currentY *= 0.98;
-      }
-
-      mesh.rotation.y += (currentX * 0.03);
-      mesh.rotation.x += (-currentY * 0.03);
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    return () => {
-      container.removeEventListener('mousemove', onMouseMove);
-      renderer.dispose();
-      if (containerRef.current) containerRef.current.removeChild(renderer.domElement);
-    };
-  }, []);
-
-  return (
-    <div className="relative group">
-      <div ref={containerRef} className="w-[400px] h-[400px] cursor-default z-10 relative" />
-      <div className="absolute inset-0 border border-[#C6A75E]/10 rounded-full scale-90 group-hover:scale-100 transition-transform duration-1000 pointer-events-none"></div>
-    </div>
-  );
-};
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>(View.HOME);
+  const [view, setView] = useState<View>(View.HOME);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [wishlist, setWishlist] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
+  const [user, setUser] = useState<User | null>(maisonApi.getCurrentUser());
+  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      setScrollProgress((winScroll / height) * 100);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+  // Auth States
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+  const [name, setName] = useState('');
+
+  const loadProducts = useCallback(async () => {
+    try {
+      const prods = await maisonApi.getProducts();
+      setProducts(prods || []);
+    } catch (err) {
+      console.warn("Maison Inventory Sync: Operating in local archive mode.");
+    } finally {
+      setIsAppLoading(false);
+    }
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    if (!activeCategory) return PRODUCTS;
-    return PRODUCTS.filter(p => p.category.toLowerCase() === activeCategory.toLowerCase());
-  }, [activeCategory]);
+  useEffect(() => {
+    loadProducts();
+    // Initialize Google Auth
+    const initGoogle = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: "520520671038-a9iijhl6qo3ok2nqavgea6m973nta5br.apps.googleusercontent.com",
+          callback: handleGoogleResponse
+        });
+        if (view === View.LOGIN) {
+          window.google.accounts.id.renderButton(
+            document.getElementById("google-login-btn"),
+            { theme: "outline", size: "large", width: "100%", text: "continue_with" }
+          );
+        }
+      }
+    };
+    initGoogle();
+  }, [loadProducts, view]);
 
-  const navigateToView = (view: View) => {
-    setOrderComplete(false);
-    setCurrentView(view);
+  const handleGoogleResponse = async (response: any) => {
+    setIsActionLoading(true);
+    try {
+      const loggedUser = await maisonApi.googleLogin(response.credential);
+      setUser(loggedUser);
+      setView(View.HOME);
+    } catch (err: any) {
+      alert("Google Identity Verification Failed.");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeCategory === 'All') {
+      setFilteredProducts(products);
+    } else {
+      setFilteredProducts(products.filter(p => p.category === activeCategory));
+    }
+  }, [activeCategory, products]);
+
+  const handleNavigate = (newView: View, category?: Category | 'All') => {
+    if (category) {
+      setActiveCategory(category);
+    }
+    setView(newView);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-    navigateToView(View.PRODUCT_DETAIL);
-  };
-
-  const handleCategoryClick = (category: string) => {
-    setActiveCategory(category);
-    setCurrentView(View.HOME);
-    const element = document.getElementById('new-arrivals');
-    element?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const addToBag = (product: Product, size = 'M', color = 'Imperial Gold') => {
-    setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id && item.size === size);
-      if (existing) {
-        return prev.map(item => 
-          item.product.id === product.id && item.size === size 
-          ? { ...item, quantity: item.quantity + 1 } 
-          : item
-        );
-      }
-      return [...prev, { product, quantity: 1, size, color }];
-    });
-    
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-28 right-8 bg-[#C6A75E] text-black px-8 py-4 text-[11px] tracking-[0.3em] font-black animate-in fade-in slide-in-from-right-12 duration-500 z-[100] shadow-[0_0_30px_rgba(198,167,94,0.4)]';
-    toast.innerText = 'ADJOINED TO COLLECTION';
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.classList.add('opacity-0', 'translate-x-12');
-      setTimeout(() => toast.remove(), 500);
-    }, 3000);
-  };
-
-  const updateQuantity = (id: string, size: string, delta: number) => {
-    setCart(prev => prev.map(item => {
-      if (item.product.id === id && item.size === size) {
-        return { ...item, quantity: Math.max(1, item.quantity + delta) };
-      }
-      return item;
-    }));
-  };
-
-  const removeFromCart = (id: string, size: string) => {
-    setCart(prev => prev.filter(item => !(item.product.id === id && item.size === size)));
-  };
-
-  const handlePayment = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setOrderComplete(true);
-      setCart([]);
-    }, 3000);
-  };
+    setIsActionLoading(true);
 
-  const renderHome = () => (
-    <div className="animate-in fade-in duration-1000">
-      <section className="relative h-[95vh] overflow-hidden bg-black flex flex-col items-center justify-center">
-        <div className="absolute inset-0 opacity-40">
-          <img 
-            src="https://images.unsplash.com/photo-1549439602-43ebca2327af?auto=format&fit=crop&q=80&w=2000" 
-            alt="Hero Background"
-            className="w-full h-full object-cover grayscale brightness-50"
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-center max-w-7xl mx-auto px-8 w-full">
-          <div className="flex-1 space-y-10 text-center md:text-left animate-in slide-in-from-left-12 duration-1000">
-            <div className="flex items-center space-x-4 mb-4">
-              <span className="w-16 h-[2px] bg-[#C6A75E]"></span>
-              <p className="text-[12px] tracking-[0.6em] text-[#C6A75E] uppercase font-black animate-pulse">Est. 1926 Milano</p>
-            </div>
-            <h1 className="text-7xl md:text-[120px] font-serif leading-[0.85] tracking-tighter italic text-white">
-              Supreme <br/> <span className="gold-text not-italic">Artistry.</span>
-            </h1>
-            <p className="text-sm md:text-xl font-light tracking-[0.4em] text-white/60 max-w-lg uppercase">
-              The Winter Obsidian Collection — <br/> Craftsmanship beyond borders.
-            </p>
-            <div className="flex flex-col sm:flex-row space-y-6 sm:space-y-0 sm:space-x-10 pt-10">
-              <button 
-                onClick={() => handleCategoryClick('Ladies')}
-                className="px-20 py-7 bg-[#C6A75E] text-black text-[11px] tracking-[0.4em] font-black hover:bg-white transition-all duration-700 shadow-[0_0_40px_rgba(198,167,94,0.3)] group"
-              >
-                DISCOVER HERS <ChevronRight className="inline w-4 h-4 ml-2 group-hover:translate-x-2 transition-transform" />
-              </button>
-              <button 
-                onClick={() => handleCategoryClick('Men')}
-                className="px-20 py-7 border border-[#C6A75E] text-[#C6A75E] text-[11px] tracking-[0.4em] font-black hover:bg-[#C6A75E] hover:text-black transition-all duration-700 backdrop-blur-md"
-              >
-                DISCOVER HIS
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 hidden md:flex items-center justify-center animate-in zoom-in-50 duration-1000">
-            <ThreeDScene />
-          </div>
-        </div>
-      </section>
-
-      <section className="py-40 bg-[#050505]">
-        <div className="max-w-[1600px] mx-auto px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            <div 
-              onClick={() => handleCategoryClick('Ladies')}
-              className="relative aspect-[4/5] overflow-hidden group cursor-pointer border border-white/5"
-            >
-              <img src="https://images.unsplash.com/photo-1539109132314-3477524c859c?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-1000 grayscale group-hover:grayscale-0" alt="" />
-              <div className="absolute inset-0 flex flex-col justify-end p-12 bg-gradient-to-t from-black via-transparent to-transparent">
-                <p className="text-[#C6A75E] text-[10px] tracking-[0.5em] uppercase font-bold mb-4">The Muse</p>
-                <h3 className="text-4xl font-serif text-white italic">Ladies Collection</h3>
-              </div>
-            </div>
-            <div 
-              onClick={() => handleCategoryClick('Men')}
-              className="relative aspect-[4/5] overflow-hidden group cursor-pointer border border-white/5 md:mt-24"
-            >
-              <img src="https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-1000 grayscale group-hover:grayscale-0" alt="" />
-              <div className="absolute inset-0 flex flex-col justify-end p-12 bg-gradient-to-t from-black via-transparent to-transparent">
-                <p className="text-[#C6A75E] text-[10px] tracking-[0.5em] uppercase font-bold mb-4">The Gentleman</p>
-                <h3 className="text-4xl font-serif text-white italic">Men's Atelier</h3>
-              </div>
-            </div>
-            <div 
-              onClick={() => handleCategoryClick('Beauty')}
-              className="relative aspect-[4/5] overflow-hidden group cursor-pointer border border-white/5"
-            >
-              <img src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-1000 grayscale group-hover:grayscale-0" alt="" />
-              <div className="absolute inset-0 flex flex-col justify-end p-12 bg-gradient-to-t from-black via-transparent to-transparent">
-                <p className="text-[#C6A75E] text-[10px] tracking-[0.5em] uppercase font-bold mb-4">The Aura</p>
-                <h3 className="text-4xl font-serif text-white italic">Beauty & Scents</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="py-20 bg-black overflow-hidden whitespace-nowrap border-y border-[#C6A75E]/20">
-        <div className="animate-shine flex space-x-20 items-center">
-          {[1,2,3,4,5].map(i => (
-            <div key={i} className="flex items-center space-x-12">
-              <Sparkles className="w-8 h-8 text-[#C6A75E]" />
-              <span className="text-[12px] tracking-[0.8em] font-black gold-text uppercase">Worldwide Priority Express Selection</span>
-              <span className="text-white/20">•</span>
-              <span className="text-[12px] tracking-[0.8em] font-black gold-text uppercase">Milanese Heritage Since 1926</span>
-              <span className="text-white/20">•</span>
-              <span className="text-[12px] tracking-[0.8em] font-black gold-text uppercase">Certified Hand-Tailored Luxury</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <section id="new-arrivals" className="py-40 px-8 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-32 space-y-12 md:space-y-0">
-          <div className="space-y-8">
-            <div className="flex items-center space-x-6">
-              <div className="w-20 h-[1px] bg-[#C6A75E]"></div>
-              <p className="text-[14px] tracking-[0.6em] text-[#C6A75E] uppercase font-black italic">Curated Collections</p>
-            </div>
-            <h2 className="text-7xl font-serif tracking-tighter italic text-white leading-none">
-              {activeCategory ? activeCategory : 'The Selection'}
-            </h2>
-          </div>
-          <div className="flex flex-wrap gap-6">
-            {['All', 'Ladies', 'Men', 'Beauty'].map(cat => (
-              <button 
-                key={cat}
-                onClick={() => setActiveCategory(cat === 'All' ? null : cat)}
-                className={`px-12 py-4 text-[11px] tracking-[0.4em] font-black uppercase transition-all border-2 ${activeCategory === (cat === 'All' ? null : cat) ? 'bg-[#C6A75E] text-black border-[#C6A75E] shadow-[0_0_20px_rgba(198,167,94,0.3)]' : 'border-white/10 text-white/40 hover:text-[#C6A75E] hover:border-[#C6A75E]'}`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
-          {filteredProducts.map((product, idx) => (
-            <div key={product.id} className="animate-in fade-in slide-in-from-bottom-12 duration-700" style={{ transitionDelay: `${idx * 100}ms` }}>
-              <ProductCard 
-                product={product} 
-                onClick={handleProductClick} 
-                onAddToBag={(e, p) => {
-                  e.stopPropagation();
-                  addToBag(p);
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-
-  const renderProductDetail = () => {
-    if (!selectedProduct) return null;
-    return (
-      <div className="min-h-screen py-24 bg-[#050505] animate-in fade-in duration-1000">
-        <div className="max-w-7xl mx-auto px-8">
-          <button 
-            onClick={() => navigateToView(View.HOME)}
-            className="flex items-center text-[11px] tracking-[0.5em] font-black text-[#C6A75E] mb-24 hover:text-white transition-all group"
-          >
-            <ArrowLeft className="w-4 h-4 mr-6 transition-transform group-hover:-translate-x-3" /> RETURN TO GALLERY
-          </button>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-24">
-            <div className="lg:col-span-7 space-y-12">
-              <div className="aspect-[3/4] overflow-hidden bg-[#0a0a0a] shadow-2xl border border-white/5">
-                <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
-              </div>
-            </div>
-            <div className="lg:col-span-5 space-y-16 h-fit sticky top-40">
-              <div className="space-y-8">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-[1px] bg-[#C6A75E]"></div>
-                  <p className="text-[14px] tracking-[0.6em] text-[#C6A75E] uppercase font-black">RIVARA ATELIER</p>
-                </div>
-                <h1 className="text-7xl font-serif italic tracking-tighter text-white leading-tight">{selectedProduct.name}</h1>
-                <p className="text-5xl font-light gold-text">₹ {selectedProduct.price.toLocaleString('en-IN')}</p>
-              </div>
-              <div className="space-y-6 pt-10">
-                <button 
-                  onClick={() => addToBag(selectedProduct)}
-                  className="w-full bg-[#C6A75E] text-black py-10 text-[14px] tracking-[0.6em] font-black hover:bg-white transition-all shadow-2xl active:scale-[0.98]"
-                >
-                  ADJOIN TO COLLECTION
-                </button>
-              </div>
-              <div className="space-y-12 pt-16">
-                <div className="space-y-6">
-                  <h4 className="text-[12px] tracking-[0.4em] font-black text-[#C6A75E] uppercase italic">The Narrative</h4>
-                  <p className="text-xl text-white/60 leading-relaxed font-serif italic">{selectedProduct.description}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderCart = () => {
-    const subtotal = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-    return (
-      <div className="min-h-screen py-40 px-8 max-w-7xl mx-auto bg-[#050505] animate-in fade-in duration-1000">
-        <h1 className="text-8xl font-serif mb-32 text-center tracking-tighter italic gold-text">Selection Archive</h1>
-        {cart.length === 0 ? (
-          <div className="text-center py-60 space-y-12 border-y border-white/5">
-            <p className="text-white/20 font-serif italic text-4xl">Your repository of luxury is currently vacant.</p>
-            <button 
-              onClick={() => navigateToView(View.HOME)}
-              className="px-20 py-8 bg-[#C6A75E] text-black text-[14px] tracking-[0.5em] font-black hover:bg-white transition-all shadow-2xl"
-            >
-              RESUME DISCOVERY
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-32">
-            <div className="lg:col-span-8 space-y-20">
-              {cart.map((item, idx) => (
-                <div key={`${item.product.id}-${idx}`} className="flex items-start space-x-16 pb-20 border-b border-white/5 group">
-                  <div className="flex-1 space-y-10 py-6">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-6">
-                        <p className="text-[12px] tracking-[0.5em] text-[#C6A75E] uppercase font-black">RIVARA ATELIER</p>
-                        <h3 className="text-5xl font-serif italic text-white group-hover:gold-text transition-all duration-500 cursor-pointer">
-                          {item.product.name}
-                        </h3>
-                      </div>
-                      <p className="text-4xl font-light gold-text">₹ {(item.product.price * item.quantity).toLocaleString('en-IN')}</p>
-                    </div>
-                    <div className="flex justify-between items-center pt-12">
-                      <div className="flex items-center border border-white/10 px-8 py-4 space-x-12 bg-[#0a0a0a] shadow-2xl">
-                        <button onClick={() => updateQuantity(item.product.id, item.size, -1)} className="text-2xl text-[#C6A75E] hover:text-white transition-all"><Minus className="w-6 h-6" /></button>
-                        <span className="text-xl font-black text-white w-8 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product.id, item.size, 1)} className="text-2xl text-[#C6A75E] hover:text-white transition-all"><Plus className="w-6 h-6" /></button>
-                      </div>
-                      <button 
-                        onClick={() => removeFromCart(item.product.id, item.size)}
-                        className="text-white/20 hover:text-[#C6A75E] transition-all flex items-center space-x-4 text-[12px] tracking-[0.4em] font-black uppercase"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                        <span>Rescind Item</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="lg:col-span-4 h-fit sticky top-40 bg-[#0a0a0a] p-16 border border-white/5 shadow-2xl space-y-16">
-              <h2 className="text-[16px] tracking-[0.6em] font-black uppercase pb-8 border-b border-white/5 gold-text italic font-serif text-center">Summary of Value</h2>
-              <div className="pt-16 border-t border-white/10 flex justify-between text-4xl font-serif italic font-black text-white leading-none">
-                <span className="tracking-tighter gold-text">₹ {subtotal.toLocaleString('en-IN')}</span>
-              </div>
-              <button 
-                onClick={() => navigateToView(View.CHECKOUT)}
-                className="w-full bg-[#C6A75E] text-black py-10 text-[14px] tracking-[0.6em] font-black hover:bg-white transition-all shadow-2xl"
-              >
-                PROCEED TO ACQUISITION
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderCheckout = () => {
-    const total = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-    if (orderComplete) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-black px-8 animate-in zoom-in-95 duration-1000">
-          <div className="text-center space-y-16 max-w-2xl p-20 border border-[#C6A75E]/20 bg-[#0a0a0a] shadow-[0_0_100px_rgba(198,167,94,0.1)]">
-            <CheckCircle className="w-32 h-32 text-[#C6A75E] mx-auto stroke-[0.5px] animate-pulse" />
-            <h1 className="text-8xl font-serif italic gold-text leading-tight">Grazie.</h1>
-            <button 
-              onClick={() => navigateToView(View.HOME)}
-              className="px-24 py-8 bg-[#C6A75E] text-black text-[14px] tracking-[0.6em] font-black hover:bg-white transition-all shadow-2xl"
-            >
-              RESUME DISCOVERY
-            </button>
-          </div>
-        </div>
-      );
+    // Hardcoded Admin Access for the specific review user
+    if (email === 'manishishaa17@gmail.com' && password === 'admin123') {
+      const mockAdmin: User = {
+        id: 'sovereign_1',
+        name: 'Manish Ishaa',
+        email: 'manishishaa17@gmail.com',
+        role: 'admin',
+        tier: 'Sovereign',
+        acquisitionsCount: 0
+      };
+      localStorage.setItem('rivara_db_session', JSON.stringify(mockAdmin));
+      setUser(mockAdmin);
+      setView(View.HOME);
+      setIsActionLoading(false);
+      return;
     }
-    return (
-      <div className="min-h-screen py-40 bg-[#050505] px-8 max-w-7xl mx-auto animate-in fade-in duration-1000">
-        <h1 className="text-8xl font-serif mb-32 text-center tracking-tighter italic gold-text">Final Acquisition</h1>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-32">
-          <div className="lg:col-span-8 space-y-32">
-            <form onSubmit={handlePayment} className="space-y-32">
-              <button 
-                disabled={isProcessing}
-                className="w-full bg-[#C6A75E] text-black py-12 text-[18px] tracking-[0.8em] font-black hover:bg-white transition-all flex items-center justify-center space-x-8 shadow-[0_0_50px_rgba(198,167,94,0.3)] active:scale-[0.99] disabled:opacity-50"
-              >
-                {isProcessing ? <Loader2 className="w-8 h-8 animate-spin" /> : <span>CONFIRM TRANSACTION — ₹ {total.toLocaleString('en-IN')}</span>}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
+
+    try {
+      let loggedUser;
+      if (isSignup) {
+        loggedUser = await maisonApi.signup(name, email, password);
+      } else {
+        loggedUser = await maisonApi.login(email, password);
+      }
+      setUser(loggedUser);
+      setView(View.HOME);
+    } catch (err: any) {
+      alert(err.message || "Identity verification failed.");
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
-  const renderAuth = (type: 'login' | 'signup') => (
-    <div className="min-h-screen flex items-center justify-center px-8 bg-[#050505] animate-in fade-in duration-1000">
-      <div className="max-w-xl w-full p-20 border border-white/5 bg-[#0a0a0a] shadow-2xl space-y-16 text-center">
-        <h1 className="text-6xl font-serif italic text-white">
-          {type === 'login' ? 'Welcome Back' : 'Join the Atelier'}
-        </h1>
-        <button 
-          onClick={() => { setIsProcessing(true); setTimeout(() => { setIsLoggedIn(true); setIsProcessing(false); navigateToView(View.HOME); }, 1500); }}
-          className="w-full bg-white text-black py-6 flex items-center justify-center space-x-6 hover:bg-[#C6A75E] transition-all font-black text-[12px] tracking-[0.4em] uppercase"
-        >
-          {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Sign In with Google Identity</span>}
-        </button>
+  const handleLogout = () => {
+    maisonApi.logout();
+    setUser(null);
+    setView(View.HOME);
+  };
+
+  const addToBag = (product: Product) => {
+    if (product.stockQuantity <= 0) return;
+    setCart(prev => {
+      const existing = prev.find(item => (item.product.id || item.product._id) === (product.id || product._id));
+      if (existing) return prev.map(item => (item.product.id || item.product._id) === (product.id || product._id) ? { ...item, quantity: item.quantity + 1 } : item);
+      return [...prev, { product, quantity: 1, size: 'M', color: 'Midnight Noir' }];
+    });
+  };
+
+  const toggleWishlist = (product: Product) => {
+    setWishlist(prev => {
+      const exists = prev.find(p => (p.id || p._id) === (product.id || product._id));
+      if (exists) return prev.filter(p => (p.id || p._id) !== (product.id || product._id));
+      return [...prev, product];
+    });
+  };
+
+  if (isAppLoading) {
+    return (
+      <div className="h-screen w-full bg-black flex flex-col items-center justify-center space-y-8">
+        <Fingerprint className="w-16 h-16 text-[#C6A75E] animate-pulse" />
+        <p className="text-[10px] tracking-[0.8em] text-[#C6A75E] uppercase font-black">Syncing Atelier Infrastructure...</p>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#050505]">
-      <Navbar onNavigate={navigateToView} cartCount={cart.reduce((a, b) => a + b.quantity, 0)} isLoggedIn={isLoggedIn} />
+    <div className="flex flex-col min-h-screen bg-[#050505] text-[#F5F5F0]">
+      <Navbar onNavigate={handleNavigate} onLogout={handleLogout} cartCount={cart.length} wishlistCount={wishlist.length} user={user} />
+      
       <main className="flex-grow">
-        {currentView === View.HOME && renderHome()}
-        {currentView === View.PRODUCT_DETAIL && renderProductDetail()}
-        {currentView === View.CART && renderCart()}
-        {currentView === View.CHECKOUT && renderCheckout()}
-        {currentView === View.LOGIN && renderAuth('login')}
-        {currentView === View.SIGNUP && renderAuth('signup')}
+        <AnimatePresence mode="wait">
+          {view === View.LOGIN && (
+            <motion.div 
+              key="login"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="min-h-[85vh] flex items-center justify-center p-8"
+            >
+              <div className="max-w-md w-full bg-[#0a0a0a] border border-[#C6A75E]/20 p-12 space-y-8 shadow-2xl relative overflow-hidden">
+                <div className="text-center space-y-4">
+                  <Lock className="w-10 h-10 text-[#C6A75E] mx-auto opacity-80" />
+                  <h2 className="text-3xl font-serif italic tracking-tighter">{isSignup ? 'Establish Identity' : 'Identity Portal'}</h2>
+                  <p className="text-[9px] tracking-[0.4em] text-[#C6A75E] uppercase font-black">Maison Sovereignty Access</p>
+                </div>
+
+                <form onSubmit={handleAuth} className="space-y-6">
+                  {isSignup && (
+                     <input 
+                      type="text" placeholder="FULL NAME" 
+                      className="w-full bg-white/5 border border-white/10 px-6 py-4 text-[10px] tracking-widest focus:border-[#C6A75E] outline-none transition-all uppercase"
+                      value={name} onChange={e => setName(e.target.value)} required
+                    />
+                  )}
+                  <input 
+                    type="email" placeholder="CLIENT EMAIL" 
+                    className="w-full bg-white/5 border border-white/10 px-6 py-4 text-[10px] tracking-widest focus:border-[#C6A75E] outline-none transition-all uppercase"
+                    value={email} onChange={e => setEmail(e.target.value)} required
+                  />
+                  <input 
+                    type="password" placeholder="SOVEREIGN KEY" 
+                    className="w-full bg-white/5 border border-white/10 px-6 py-4 text-[10px] tracking-widest focus:border-[#C6A75E] outline-none transition-all uppercase"
+                    value={password} onChange={e => setPassword(e.target.value)} required
+                  />
+                  <button 
+                    type="submit" disabled={isActionLoading}
+                    className="w-full bg-[#C6A75E] text-black py-5 text-[11px] tracking-[0.5em] font-black uppercase hover:bg-white transition-all flex items-center justify-center space-x-4"
+                  >
+                    {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{isSignup ? 'Establish' : 'Authorize'} Entry</span>}
+                  </button>
+                </form>
+
+                <div className="relative py-4">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
+                  <div className="relative flex justify-center text-[8px] uppercase tracking-widest text-white/20"><span className="bg-[#0a0a0a] px-4">Secure Gateway</span></div>
+                </div>
+
+                <div id="google-login-btn" className="w-full flex justify-center grayscale opacity-80 hover:grayscale-0 hover:opacity-100 transition-all"></div>
+
+                <div className="text-center pt-4 border-t border-white/5 pt-8">
+                  <button onClick={() => setIsSignup(!isSignup)} className="text-[9px] tracking-widest text-[#C6A75E] font-bold uppercase hover:text-white transition-colors">
+                    {isSignup ? 'Already Authenticated? Login' : 'New Identity? Request Signup'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {view === View.HOME && (
+            <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <section className="relative h-screen flex items-center justify-center bg-black overflow-hidden">
+                 <div className="absolute inset-0 z-0">
+                    <Hero3D />
+                 </div>
+                 <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black"></div>
+                 <div className="relative z-10 text-center space-y-12 max-w-4xl px-8">
+                    <motion.div 
+                      initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }}
+                      className="flex items-center justify-center space-x-4"
+                    >
+                      <span className="w-12 h-[1px] bg-[#C6A75E]"></span>
+                      <p className="text-[10px] tracking-[0.8em] text-[#C6A75E] uppercase font-black">Milanese High Artistry</p>
+                      <span className="w-12 h-[1px] bg-[#C6A75E]"></span>
+                    </motion.div>
+                    <motion.h1 
+                      initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7 }}
+                      className="text-8xl md:text-[140px] font-serif italic tracking-tighter leading-none"
+                    >
+                      Rivara <br/> <span className="gold-text not-italic">Sovereign.</span>
+                    </motion.h1>
+                    <motion.div
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
+                    >
+                      <button 
+                        onClick={() => document.getElementById('catalog')?.scrollIntoView({behavior: 'smooth'})}
+                        className="group relative px-20 py-8 bg-[#C6A75E] text-black text-[11px] tracking-[0.6em] font-black uppercase overflow-hidden"
+                      >
+                        <span className="relative z-10">Explore the Archive</span>
+                        <div className="absolute inset-0 bg-white translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+                      </button>
+                    </motion.div>
+                 </div>
+              </section>
+
+              <section id="catalog" className="py-40 px-8 max-w-7xl mx-auto space-y-20">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-10">
+                  <h2 className="text-4xl font-serif italic">The Season's Archive - {activeCategory}</h2>
+                  <div className="flex flex-wrap justify-center gap-8">
+                    {['All', 'Ladies', 'Men', 'Accessories'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat as any)}
+                        className={`text-[9px] tracking-[0.4em] uppercase font-black transition-all ${activeCategory === cat ? 'text-[#C6A75E]' : 'text-white/30 hover:text-white'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+                  {filteredProducts.map(p => (
+                    <ProductCard 
+                      key={p.id || p._id} product={p} 
+                      onClick={p => { setSelectedProduct(p); setView(View.PRODUCT_DETAIL); }}
+                      onAddToBag={(e, p) => { e.stopPropagation(); addToBag(p); }}
+                    />
+                  ))}
+                </div>
+              </section>
+            </motion.div>
+          )}
+
+          {view === View.WISHLIST && (
+            <motion.div key="wishlist" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-40 px-8 max-w-7xl mx-auto">
+               <h1 className="text-6xl font-serif italic text-center gold-text mb-20">The Curated Archive</h1>
+               {wishlist.length > 0 ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+                    {wishlist.map(p => (
+                      <div key={p.id || p._id} className="relative group">
+                         <ProductCard 
+                            product={p} 
+                            onClick={p => { setSelectedProduct(p); setView(View.PRODUCT_DETAIL); }}
+                            onAddToBag={(e, p) => { e.stopPropagation(); addToBag(p); }}
+                          />
+                          <button 
+                            onClick={() => toggleWishlist(p)}
+                            className="absolute top-4 right-4 bg-red-500/80 p-3 rounded-full hover:bg-red-600 transition-colors z-20"
+                          >
+                            <Trash2 className="w-4 h-4 text-white" />
+                          </button>
+                      </div>
+                    ))}
+                 </div>
+               ) : (
+                 <div className="text-center py-40 flex flex-col items-center space-y-10">
+                    <Heart className="w-16 h-16 text-white/10" />
+                    <p className="italic font-serif text-2xl opacity-30">Your curated archive is currently empty.</p>
+                    <button onClick={() => setView(View.HOME)} className="text-[10px] tracking-[0.5em] text-[#C6A75E] uppercase font-black border-b border-[#C6A75E] pb-2 hover:text-white hover:border-white transition-all">Return to Catalog</button>
+                 </div>
+               )}
+            </motion.div>
+          )}
+
+          {view === View.ACCOUNT && user && (
+            <motion.div key="account" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-40 px-8 max-w-4xl mx-auto">
+               <div className="bg-white/5 border border-white/10 p-20 space-y-12 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-10 opacity-5">
+                    <UserIcon className="w-64 h-64" />
+                  </div>
+                  <div className="space-y-4">
+                    <p className="text-[10px] tracking-[0.8em] text-[#C6A75E] uppercase font-black">Client Profile</p>
+                    <h1 className="text-6xl font-serif italic">{user.name}</h1>
+                    <p className="text-[11px] tracking-[0.4em] text-white/40 uppercase font-black">{user.email}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-12 border-t border-white/5 pt-12">
+                    <div className="space-y-2">
+                       <p className="text-[9px] tracking-[0.3em] text-white/20 uppercase font-black">Status Tier</p>
+                       <p className="text-2xl font-serif italic text-[#C6A75E]">{user.tier}</p>
+                    </div>
+                    <div className="space-y-2">
+                       <p className="text-[9px] tracking-[0.3em] text-white/20 uppercase font-black">Total Acquisitions</p>
+                       <p className="text-2xl font-serif italic">{user.acquisitionsCount}</p>
+                    </div>
+                  </div>
+                  <div className="pt-12 flex justify-between">
+                     <button onClick={handleLogout} className="flex items-center space-x-3 text-red-500 text-[10px] tracking-widest uppercase font-black hover:text-white transition-colors">
+                        <LogOut className="w-4 h-4" />
+                        <span>Terminate Session</span>
+                     </button>
+                     <button className="flex items-center space-x-3 text-white text-[10px] tracking-widest uppercase font-black hover:text-[#C6A75E] transition-colors">
+                        <Package className="w-4 h-4" />
+                        <span>Acquisition History</span>
+                     </button>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+
+          {view === View.ADMIN_DASHBOARD && (
+             <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <AdminDashboard onProductsChange={loadProducts} />
+             </motion.div>
+          )}
+
+          {view === View.CART && (
+            <motion.div key="cart" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-40 px-8 max-w-5xl mx-auto">
+               <h1 className="text-6xl font-serif italic text-center gold-text mb-20">The Selection Bag</h1>
+               {cart.length > 0 ? (
+                 <div className="space-y-12">
+                   {cart.map((item, idx) => (
+                     <div key={idx} className="flex flex-col md:flex-row items-center gap-12 border-b border-white/5 pb-12 group">
+                       <img src={item.product.image} className="w-32 h-44 object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                       <div className="flex-grow space-y-2">
+                         <p className="text-[10px] tracking-widest text-[#C6A75E] uppercase font-black">{item.product.category}</p>
+                         <h3 className="text-3xl font-serif italic">{item.product.name}</h3>
+                         <div className="flex space-x-8 text-[9px] tracking-widest uppercase text-white/40 font-bold pt-4">
+                           <span>Size: {item.size}</span>
+                           <span>Quantity: {item.quantity}</span>
+                         </div>
+                       </div>
+                       <div className="text-right">
+                         <p className="text-3xl font-light">₹ {(item.product.price * item.quantity).toLocaleString()}</p>
+                         <button onClick={() => setCart(c => c.filter((_, i) => i !== idx))} className="text-[9px] tracking-widest text-red-500 uppercase mt-4 hover:underline">Remove Item</button>
+                       </div>
+                     </div>
+                   ))}
+                   <div className="pt-20 flex flex-col items-end space-y-10">
+                      <div className="flex space-x-20 text-4xl font-serif italic">
+                        <span className="text-xs uppercase tracking-[0.4em] font-black text-white/20 not-italic">Total Acquisition</span>
+                        <span className="gold-text">₹ {cart.reduce((a, b) => a + (b.product.price * b.quantity), 0).toLocaleString()}</span>
+                      </div>
+                      <button className="w-full md:w-auto px-20 py-10 bg-[#C6A75E] text-black text-[13px] tracking-[0.6em] font-black uppercase hover:bg-white transition-all shadow-2xl">
+                        Initiate Secure Checkout
+                      </button>
+                   </div>
+                 </div>
+               ) : (
+                 <div className="text-center py-40 flex flex-col items-center space-y-10">
+                    <ShoppingBag className="w-16 h-16 text-white/10" />
+                    <p className="italic font-serif text-2xl opacity-30">The collection is awaiting your curation.</p>
+                    <button onClick={() => setView(View.HOME)} className="text-[10px] tracking-[0.5em] text-[#C6A75E] uppercase font-black border-b border-[#C6A75E] pb-2 hover:text-white hover:border-white transition-all">Return to Catalog</button>
+                 </div>
+               )}
+            </motion.div>
+          )}
+
+          {view === View.PRODUCT_DETAIL && selectedProduct && (
+            <motion.div key="detail" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-40 px-8 max-w-7xl mx-auto">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-24">
+                  <div className="aspect-[3/4] bg-[#0a0a0a] overflow-hidden group border border-white/5">
+                    <img src={selectedProduct.image} className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-1000 scale-105" />
+                  </div>
+                  <div className="flex flex-col justify-center space-y-16">
+                    <div className="space-y-6">
+                      <p className="text-[10px] tracking-[0.8em] text-[#C6A75E] uppercase font-black">Limited Archive Release</p>
+                      <h1 className="text-8xl font-serif italic tracking-tighter">{selectedProduct.name}</h1>
+                      <p className="text-5xl font-light gold-text">₹ {selectedProduct.price.toLocaleString()}</p>
+                    </div>
+                    <p className="text-xl text-white/50 font-serif italic leading-relaxed">{selectedProduct.description}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                       <button onClick={() => addToBag(selectedProduct)} className="bg-[#C6A75E] text-black py-8 text-[11px] tracking-[0.5em] font-black uppercase hover:bg-white transition-all">Acquire Piece</button>
+                       <button onClick={() => toggleWishlist(selectedProduct)} className="border border-[#C6A75E] text-[#C6A75E] py-8 text-[11px] tracking-[0.5em] font-black uppercase hover:bg-[#C6A75E] hover:text-black transition-all">
+                        {wishlist.find(p => (p.id || p._id) === (selectedProduct.id || selectedProduct._id)) ? 'In Wishlist' : 'Add to Wishlist'}
+                       </button>
+                    </div>
+                    <div className="pt-12 border-t border-white/5 space-y-4">
+                      <div className="flex items-center space-x-4 text-[9px] tracking-widest text-white/40 uppercase font-black">
+                        <ShieldCheck className="w-4 h-4 text-[#C6A75E]" />
+                        <span>Authenticated Digital Provenance Included</span>
+                      </div>
+                    </div>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
+
       <Footer />
-      <div 
-        className="fixed top-24 left-0 h-[2px] bg-[#C6A75E] z-[60] transition-all duration-700 shadow-[0_0_20px_#C6A75E]"
-        style={{ width: `${scrollProgress}%` }}
-      />
     </div>
   );
 };
