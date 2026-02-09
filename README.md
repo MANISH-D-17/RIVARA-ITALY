@@ -49,4 +49,5 @@ npm run dev
 This repository uses a monorepo layout, so Vercel must read the client build output from `client/dist`. A `vercel.json` is included with:
 - `buildCommand`: `npm run build --workspace client`
 - `outputDirectory`: `client/dist`
+- `installCommand`: `npm install --legacy-peer-deps` (prevents peer-resolution failures during Vercel install)
 
