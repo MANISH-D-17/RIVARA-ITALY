@@ -44,3 +44,9 @@ npm run dev
 - Frontend: Vercel / Netlify (set `VITE_API_URL`)
 - Backend: Render / Railway / VPS (set server env vars, open port)
 - Enable CORS by configuring `CLIENT_URL`
+
+### Vercel output directory fix
+This repository uses a monorepo layout, so Vercel must read the client build output from `client/dist`. A `vercel.json` is included with:
+- `buildCommand`: `npm run build --workspace client`
+- `outputDirectory`: `client/dist`
+
