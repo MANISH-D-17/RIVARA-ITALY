@@ -1,34 +1,53 @@
+# RIVARA-ITALY — Luxury Fashion E-Commerce Platform
 
-# RIVARA ITALY - Production Backend
+Full-stack luxury fashion e-commerce application with customer storefront and admin dashboard.
 
-## 🚀 Setup & Installation
-1. `npm install`
-2. Create `.env` file based on `.env.example`.
-3. Ensure `MONGODB_URI` is correct.
-4. Set `JWT_SECRET` to a long random string.
-5. Run `npm run start` or `npm run dev`.
+## Stack
+- **Frontend:** React + Vite + TailwindCSS + Framer Motion + Three.js
+- **Backend:** Node.js + Express + MongoDB (Mongoose)
+- **Security:** JWT access/refresh, bcrypt, helmet, rate limiting, zod validation, mongo sanitize
 
-## 👑 Sovereign Credentials
-- Email: `manishishaa17@gmail.com`
-- Any user registering with this email automatically inherits the `admin` role and `Sovereign` tier.
+## Structure
+```
+RIVARA-ITALY/
+├── client/
+│   ├── src/components
+│   ├── src/pages
+│   ├── src/layouts
+│   ├── src/hooks
+│   ├── src/services
+│   └── src/assets
+├── server/
+│   ├── src/controllers
+│   ├── src/models
+│   ├── src/routes
+│   ├── src/middleware
+│   ├── src/utils
+│   └── src/config
+└── README.md
+```
 
-## 🔐 Security Protocols
-- **JWT Protection**: All sensitive routes require a Bearer token.
-- **Admin Lock**: Product creation, editing, and deletion are restricted to users with `role: admin`.
-- **Input Validation**: NoSQL injection protection and body size limiting implemented.
+## Setup
+```bash
+npm install
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+npm run dev
+```
 
-## 📦 Deployment Instructions (Render / Railway)
-1. Link your GitHub repository.
-2. Set Environment Variables:
-   - `MONGODB_URI`
-   - `JWT_SECRET`
-   - `GOOGLE_CLIENT_ID`
-   - `NODE_ENV=production`
-3. Root Directory: `.`
-4. Build Command: `npm install`
-5. Start Command: `node server.js`
+## Required environment values
+- `MONGO_URI` uses Atlas URI provided in `server/.env.example`
+- `GOOGLE_CLIENT_ID=520520671038-a9iijhl6qo3ok2nqavgea6m973nta5br.apps.googleusercontent.com`
+- Admin email auto-elevated: `manishishaa17@gmail.com`
 
-## 🚨 Google Auth Fix
-If you see `origin_mismatch`:
-1. Go to Google Cloud Console.
-2. Add your frontend URL (e.g., `http://localhost:5173`) to **Authorized JavaScript Origins**.
+## Deploy
+- Frontend: Vercel / Netlify (set `VITE_API_URL`)
+- Backend: Render / Railway / VPS (set server env vars, open port)
+- Enable CORS by configuring `CLIENT_URL`
+
+### Vercel output directory fix
+This repository uses a monorepo layout, so Vercel must read the client build output from `client/dist`. A `vercel.json` is included with:
+- `buildCommand`: `npm run build --workspace client`
+- `outputDirectory`: `client/dist`
+- `installCommand`: `npm install --legacy-peer-deps` (prevents peer-resolution failures during Vercel install)
+
